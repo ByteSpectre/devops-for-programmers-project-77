@@ -1,0 +1,40 @@
+- hosts: all
+  tasks:
+    # - name: Update pkgs apt
+    #   ansible.builtin.apt:
+    #     update_cache: true
+    #     upgrade: false
+    #     cache_valid_time: 86400
+
+    - name: Install pip and docker module with pip
+      include_role:
+        name: geerlingguy.pip
+      vars:
+        pip_install_packages:
+          - name: docker
+
+    - name: Update env
+      ansible.builtin.template:
+        src: templates/.env.j2
+        dest: .env
+        mode: '0644'
+      tags: deploy
+
+    - name: Run Redmine
+      community.docker.docker_container:
+        name: redmine
+        image: "redmine:latest"
+        restart_policy: always
+        state: started
+        ports:
+          - 3000:3000
+        env_file: .env
+      tags: deploy
+
+- hosts: webservers
+  gather_facts: no
+  tags: [datadog, monitoring, deploy]
+  tasks:
+    - name: DataDog setup
+      include_role:
+        name: datadog.datadog
